@@ -1,0 +1,2 @@
+bandomain.example.com
+bandomain.com

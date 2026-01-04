@@ -1,0 +1,3 @@
+127.0.0.2 wspeed.qq.com
+127.0.0.1 localhost.weixin.qq.com
+::1 localhost.weixin.qq.com
