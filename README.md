@@ -2,6 +2,7 @@
 一个基于 Java 开发的高性能、可配置的 DNS over HTTPS (DoH) 代理服务器。该项目旨在提供安全、隐私保护的 DNS 解析服务 支持多种高级功能，包括代理支持、域名过滤、本地 hosts 文件解析等</br>
 Windows系统记得关闭DNS智能优化（组策略>>计算机配置>>管理模板>>网络>>DNS客户端>>禁用智能多宿主名称解析：已启用）</br>
 </br>
+环境配置：标准java环境</br>
 启动方式</br>
 java -jar doh-dns-server.jar</br>
 </br>
