@@ -1,3 +1,5 @@
+# IPv4记录
 127.0.0.2 wspeed.qq.com
 127.0.0.1 localhost.weixin.qq.com
+# IPv6记录
 ::1 localhost.weixin.qq.com
