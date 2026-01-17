@@ -1,0 +1,12 @@
+2016.01.17更新日志：</br>
+增加远程管理功能，向指定端口发送指令可以远程执行命令</br>
+目前支持增删Host、增删Bandomain、切换服务器、重启服务器</br>
+指令格式：时间-指令-IP-域名-鉴权MD5</br>
+鉴权MD5计算方式：MD5(指令-key)</br>
+指令格式示例（key=123456）：</br>
+2026.01.17-15-add-host-127.0.0.1-localhost.example.com-33A120CFA11AF566B08EBD2DD534523C</br>
+2026.01.17-15-delete-host-127.0.0.1-localhost.example.com-EB4BD4BE852FECDA8B70244A05693235</br>
+2026.01.17-15-add-bandomain-example.com-6B11B02333F8E19123687618C7BE3079</br>
+2026.01.17-15-delete-bandomain-example.com-6754AEE6FC8300E063A1A50D08E265F0</br>
+2026.01.17-15-restart-now-062FBF899BA0F9F54D796B664BA8D439</br>
+2026.01.17-15-switchserver-now-DBE2EEB8782553C4DA3E6A7973EA4BE4</br>
