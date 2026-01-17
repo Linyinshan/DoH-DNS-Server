@@ -32,6 +32,7 @@ java -jar doh-dns-server.jar -p 5353 --doh https://cloudflare-dns.com/dns-query<
 ·可使用config.ini文件进行修改配置</br>
 首次启动后自动生成默认配置</br>
 命令行将参数覆盖config.ini参数</br>
+2026.01.17更新：支持远程命令管理</br>
 </br>
 </br>
 【声明】</br>
