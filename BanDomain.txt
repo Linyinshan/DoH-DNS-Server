@@ -1,1 +1,2 @@
 bandomain.example.com
+example.com
