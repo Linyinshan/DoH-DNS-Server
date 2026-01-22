@@ -32,7 +32,14 @@ java -jar doh-dns-server.jar -p 5353 --doh https://cloudflare-dns.com/dns-query<
 ·可使用config.ini文件进行修改配置</br>
 首次启动后自动生成默认配置</br>
 命令行将参数覆盖config.ini参数</br>
-2026.01.17更新：支持远程命令管理</br>
+</br>
+2026.01.22更新</br>
+修复远程管理指令识别</br>
+修复手动切换服务器失败</br>
+修复自动切换功能达到切换阈值多次切换BUG</br>
+修改自动切换逻辑，现在可选是否开启自动切换</br>
+已知BUG：远程管理添加的Host不生效</br>
+</br>
 </br>
 </br>
 【声明】</br>
