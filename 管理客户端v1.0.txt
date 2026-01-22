@@ -1,0 +1,314 @@
+# 网络配置管理客户端脚本
+# 全选复制，以管理员权限启动powershell，粘贴执行
+
+
+# 初始化变量
+$global:ServerIP = ""
+$global:ServerPort = 0
+$global:AuthKey = ""
+
+# 显示主菜单
+function Show-Menu {
+    Clear-Host
+    Write-Host "==========================================" -ForegroundColor Cyan
+    Write-Host "       网络配置管理客户端 v1.0" -ForegroundColor Cyan
+    Write-Host "==========================================" -ForegroundColor Cyan
+    Write-Host ""
+}
+
+# 获取用户输入的基本信息
+function Get-BasicInfo {
+    Write-Host "请输入服务器配置信息：" -ForegroundColor Yellow
+    Write-Host ""
+
+    # 获取IP地址
+    do {
+        $global:ServerIP = Read-Host "服务器IP地址"
+        if ([string]::IsNullOrEmpty($global:ServerIP)) {
+            Write-Host "IP地址不能为空，请重新输入！" -ForegroundColor Red
+        }
+    } while ([string]::IsNullOrEmpty($global:ServerIP))
+
+    # 获取端口号
+    do {
+        $portInput = Read-Host "服务器端口号"
+        if (-not ($portInput -match "^\d+$") -or [int]$portInput -lt 1 -or [int]$portInput -gt 65535) {
+            Write-Host "端口号必须是1-65535之间的数字，请重新输入！" -ForegroundColor Red
+            $global:ServerPort = 0
+        } else {
+            $global:ServerPort = [int]$portInput
+        }
+    } while ($global:ServerPort -eq 0)
+
+    # 获取鉴权密钥
+    do {
+        $global:AuthKey = Read-Host "鉴权密钥"
+        if ([string]::IsNullOrEmpty($global:AuthKey)) {
+            Write-Host "鉴权密钥不能为空，请重新输入！" -ForegroundColor Red
+        }
+    } while ([string]::IsNullOrEmpty($global:AuthKey))
+
+    Write-Host ""
+}
+
+# 显示功能菜单并获取用户选择
+function Get-UserChoice {
+    Write-Host "请选择要执行的操作：" -ForegroundColor Yellow
+    Write-Host "  [1] 添加HOST域名绑定" -ForegroundColor White
+    Write-Host "  [2] 删除HOST域名绑定" -ForegroundColor White
+    Write-Host "  [3] 添加屏蔽域名" -ForegroundColor White
+    Write-Host "  [4] 删除屏蔽域名" -ForegroundColor White
+    Write-Host "  [5] 切换DoH服务器" -ForegroundColor White
+    Write-Host "  [6] 重启服务器" -ForegroundColor White
+    Write-Host "  [0] 退出程序" -ForegroundColor White
+    Write-Host ""
+
+    do {
+        $choice = Read-Host "请输入选项 [0-6]"
+        if ($choice -notmatch "^[0-6]$") {
+            Write-Host "输入无效，请输入0-6之间的数字！" -ForegroundColor Red
+        }
+    } while ($choice -notmatch "^[0-6]$")
+
+    return $choice
+}
+
+# 获取域名输入
+function Get-DomainInput {
+    param([string]$prompt)
+
+    do {
+        $domain = Read-Host $prompt
+        if ([string]::IsNullOrEmpty($domain)) {
+            Write-Host "域名不能为空，请重新输入！" -ForegroundColor Red
+        }
+    } while ([string]::IsNullOrEmpty($domain))
+
+    return $domain
+}
+
+# 获取IP地址输入
+function Get-IPInput {
+    do {
+        $ip = Read-Host "请输入IP地址"
+        # 简单的IP地址格式验证
+        if ($ip -match "^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$") {
+            $octets = $ip -split "\."
+            $valid = $true
+            foreach ($octet in $octets) {
+                if ([int]$octet -lt 0 -or [int]$octet -gt 255) {
+                    $valid = $false
+                    break
+                }
+            }
+            if ($valid) {
+                return $ip
+            }
+        }
+        Write-Host "IP地址格式无效，请重新输入！" -ForegroundColor Red
+    } while ($true)
+}
+
+# 计算MD5哈希
+function Get-MD5Hash {
+    param([string]$inputString)
+
+    $md5 = [System.Security.Cryptography.MD5]::Create()
+    $utf8 = [System.Text.Encoding]::UTF8
+    $hashBytes = $md5.ComputeHash($utf8.GetBytes($inputString))
+    $hashString = [System.BitConverter]::ToString($hashBytes) -replace "-", ""
+    return $hashString.ToLower()
+}
+
+# 构建命令字符串
+function Build-CommandString {
+    param([string]$commandType, [string]$ip = "", [string]$domain = "")
+
+    # 获取当前时间
+    $timestamp = Get-Date -Format "yyyy.MM.dd-HH"
+
+    # 根据命令类型构建基础命令字符串
+    $baseString = ""
+
+    switch ($commandType) {
+        "add-host" {
+            $baseString = "$timestamp-$commandType-$ip-$domain"
+        }
+        "delete-host" {
+            $baseString = "$timestamp-$commandType-$ip-$domain"
+        }
+        "add-bandomain" {
+            $baseString = "$timestamp-$commandType-$domain"
+        }
+        "delete-bandomain" {
+            $baseString = "$timestamp-$commandType-$domain"
+        }
+        "switchserver" {
+            $baseString = "$timestamp-$commandType-now"
+        }
+        "restart" {
+            $baseString = "$timestamp-$commandType-now"
+        }
+        default {
+            Write-Host "未知的命令类型: $commandType" -ForegroundColor Red
+            return $null
+        }
+    }
+
+    # 计算MD5鉴权
+    $authString = "$baseString-$global:AuthKey"
+    $authMD5 = Get-MD5Hash $authString
+
+    # 返回完整命令字符串
+    return "$baseString-$authMD5"
+}
+
+# 通过UDP发送命令
+function Send-UDPCommand {
+    param([string]$message)
+
+    try {
+        # 创建UDP客户端
+        $udpClient = New-Object System.Net.Sockets.UdpClient
+
+        # 设置服务器端点
+        $endpoint = New-Object System.Net.IPEndPoint([System.Net.IPAddress]::Parse($global:ServerIP), $global:ServerPort)
+
+        # 转换消息为字节数组
+        $data = [System.Text.Encoding]::ASCII.GetBytes($message)
+
+        # 发送消息
+        $bytesSent = $udpClient.Send($data, $data.Length, $endpoint)
+
+        # 关闭连接
+        $udpClient.Close()
+
+        Write-Host "命令已发送到 $global:ServerIP`:$global:ServerPort" -ForegroundColor Green
+        Write-Host "发送内容长度: $bytesSent 字节" -ForegroundColor Green
+        Write-Host "命令内容: $message" -ForegroundColor Green
+        return $true
+    }
+    catch {
+        Write-Host "发送命令时出错: $($_.Exception.Message)" -ForegroundColor Red
+        return $false
+    }
+}
+
+# 处理用户选择
+function Process-UserChoice {
+    param([string]$choice)
+
+    $result = $false
+
+    switch ($choice) {
+        "1" {
+            # 添加HOST域名绑定
+            $ip = Get-IPInput
+            $domain = Get-DomainInput "请输入域名"
+            $commandString = Build-CommandString "add-host" $ip $domain
+            if ($commandString) {
+                $result = Send-UDPCommand $commandString
+            }
+        }
+        "2" {
+            # 删除HOST域名绑定
+            $ip = Get-IPInput
+            $domain = Get-DomainInput "请输入域名"
+            $commandString = Build-CommandString "delete-host" $ip $domain
+            if ($commandString) {
+                $result = Send-UDPCommand $commandString
+            }
+        }
+        "3" {
+            # 添加屏蔽域名
+            $domain = Get-DomainInput "请输入要屏蔽的域名"
+            $commandString = Build-CommandString "add-bandomain" "" $domain
+            if ($commandString) {
+                $result = Send-UDPCommand $commandString
+            }
+        }
+        "4" {
+            # 删除屏蔽域名
+            $domain = Get-DomainInput "请输入要解除屏蔽的域名"
+            $commandString = Build-CommandString "delete-bandomain" "" $domain
+            if ($commandString) {
+                $result = Send-UDPCommand $commandString
+            }
+        }
+        "5" {
+            # 切换DoH服务器
+            $commandString = Build-CommandString "switchserver"
+            if ($commandString) {
+                $result = Send-UDPCommand $commandString
+                if ($result) {
+                    Write-Host "DoH服务器切换命令已发送" -ForegroundColor Green
+                }
+            }
+        }
+        "6" {
+            # 重启服务器
+            $commandString = Build-CommandString "restart"
+            if ($commandString) {
+                $result = Send-UDPCommand $commandString
+                if ($result) {
+                    Write-Host "服务器重启命令已发送" -ForegroundColor Green
+                }
+            }
+        }
+        "0" {
+            # 退出程序
+            Write-Host "感谢使用，再见！" -ForegroundColor Cyan
+            exit
+        }
+    }
+
+    return $result
+}
+
+# 主程序逻辑
+function Main {
+    # 检查PowerShell版本
+    if ($PSVersionTable.PSVersion.Major -lt 3) {
+        Write-Host "需要PowerShell 3.0或更高版本" -ForegroundColor Red
+        exit 1
+    }
+
+    # 显示欢迎信息
+    Show-Menu
+
+    # 获取基本信息
+    Get-BasicInfo
+
+    # 主循环
+    do {
+        Show-Menu
+        Write-Host "当前服务器: $global:ServerIP`:$global:ServerPort" -ForegroundColor Magenta
+        Write-Host ""
+
+        $choice = Get-UserChoice
+        Process-UserChoice $choice
+
+        if ($choice -ne "0") {
+            Write-Host ""
+            $continue = Read-Host "是否继续操作？(Y/N)"
+            if ($continue -notmatch "^(Y|y|是|yes)$") {
+                Write-Host "感谢使用，再见！" -ForegroundColor Cyan
+                break
+            }
+        }
+    } while ($true)
+}
+
+# 启动主程序
+try {
+    Main
+}
+catch {
+    Write-Host "程序执行过程中出现错误: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "详细错误信息: $($_.Exception.StackTrace)" -ForegroundColor Red
+}
+finally {
+    # 任何清理操作可以放在这里
+    Write-Host "程序执行完毕" -ForegroundColor Cyan
+    Read-Host "按Enter键退出..."
+}
