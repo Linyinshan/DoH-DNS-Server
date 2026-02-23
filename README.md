@@ -41,12 +41,11 @@ java -jar doh-dns-server.jar -p 5353 --doh https://cloudflare-dns.com/dns-query<
 修改自动切换逻辑，现在可选是否开启自动切换</br>
 已知BUG：远程管理添加的Host不生效</br>
 </br>
-2026.02计划更新</br>
-ptr类型处理方式设置</br>
-修复未知类型65异常（HTTPS记录）</br>
-修复远程管理临时Host不生效问题</br>
+2026.02.23更新</br>
+ptr类型处理方式支持自定义设置（改成一般DNS解析似乎也没什么用，但是现在支持直接拦截PTR类型请求）</br>
+对部分代码进行了优化</br>
 </br>
 </br>
 【声明】</br>
 该项目支持二次开发以及用于商业用途，商业用途请保留原作github链接以及作者信息，二次开发开源项目或商业项目如需添加友情链接可联系邮箱linyins@qq.com，修改意见一样联系该邮箱。</br>
-该项目代码由腾讯元宝（yuanbao.tencent.com）以及DeepSeek（deepseek.com）生成。</br>
+该项目代码几乎都是由腾讯元宝（yuanbao.tencent.com）以及DeepSeek（deepseek.com）生成。</br>
